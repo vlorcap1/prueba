@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Projects Hub - Auto-Sync con GitHub</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f9fafb;
+            color: #111827;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 1rem; }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .header-title { display: flex; align-items: center; gap: 1rem; }
+        h1 { font-size: 2rem; font-weight: 700; }
+        .subtitle { color: #d1d5db; font-size: 0.875rem; }
+        
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary { background: white; color: #111827; }
+        .btn-primary:hover:not(:disabled) { background: #f3f4f6; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover:not(:disabled) { background: #059669; }
+        .btn-secondary { background: #3b82f6; color: white; }
+        .btn-secondary:hover:not(:disabled) { background: #2563eb; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        
+        /* Sync Banner */
+        .sync-banner {
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border: 2px solid;
+        }
+        .sync-banner.info {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-color: #3b82f6;
+            color: #1e3a8a;
+        }
+        .sync-banner.warning {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+        .sync-banner.success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-color: #10b981;
+            color: #065f46;
+        }
+        .sync-banner.error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+        .sync-icon { font-size: 2rem; flex-shrink: 0; }
+        .sync-content { flex: 1; }
+        .sync-title { font-weight: 600; margin-bottom: 0.25rem; }
+        .sync-desc { font-size: 0.875rem; opacity: 0.9; }
+        .sync-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        
+        /* Config Panel */
+        .config-panel {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid #e5e7eb;
+        }
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .form-group { margin-bottom: 1rem; }
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        .form-help {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+        
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-badge.connected {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-badge.disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        /* Project Cards */
+        .project-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 1rem;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Loading */
+        .spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #e5e7eb;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .code-block {
+            background: #1f2937;
+            color: #10b981;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+            <div style="text-align: center;">
+                <div class="spinner" style="width: 4rem; height: 4rem; border-width: 4px;"></div>
+                <p style="margin-top: 1rem; color: #6b7280;">Cargando...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración
+        let githubConfig = {
+            owner: '',
+            repo: '',
+            token: '',
+            branch: 'main'
+        };
+
+        let currentConfig = {
+            repositories: [],
+            progress: {}
+        };
+
+        let isConnected = false;
+        let isSyncing = false;
+
+        // Cargar configuración de GitHub
+        function loadGitHubConfig() {
+            const saved = localStorage.getItem('githubConfig');
+            if (saved) {
+                githubConfig = JSON.parse(saved);
+                return true;
+            }
+            return false;
+        }
+
+        // Guardar configuración de GitHub
+        function saveGitHubConfig() {
+            localStorage.setItem('githubConfig', JSON.stringify(githubConfig));
+        }
+
+        // Cargar configuración local
+        async function loadConfig() {
+            try {
+                const response = await fetch('repos.json');
+                if (response.ok) {
+                    currentConfig = await response.json();
+                    return 'file';
+                }
+            } catch (error) {
+                console.log('No se encontró repos.json local');
+            }
+            
+            const savedRepos = localStorage.getItem('gitProjectsHub');
+            const savedProgress = localStorage.getItem('gitProjectsProgress');
+            
+            if (savedRepos) {
+                currentConfig.repositories = JSON.parse(savedRepos);
+                currentConfig.progress = savedProgress ? JSON.parse(savedProgress) : {};
+                return 'localStorage';
+            }
+            
+            return 'empty';
+        }
+
+        // Verificar conexión con GitHub
+        async function testGitHubConnection() {
+            if (!githubConfig.token || !githubConfig.owner || !githubConfig.repo) {
+                return false;
+            }
+
+            try {
+                const response = await fetch(
+                    `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}`,
+                    {
+                        headers: {
+                            'Authorization': `token ${githubConfig.token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    }
+                );
+                
+                return response.ok;
+            } catch (error) {
+                console.error('Error conectando con GitHub:', error);
+                return false;
+            }
+        }
+
+        // Obtener SHA del archivo actual
+        async function getFileSHA(path) {
+            try {
+                const response = await fetch(
+                    `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}?ref=${githubConfig.branch}`,
+                    {
+                        headers: {
+                            'Authorization': `token ${githubConfig.token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.sha;
+                }
+            } catch (error) {
+                console.log('Archivo no existe aún');
+            }
+            return null;
+        }
+
+        // Sincronizar con GitHub
+        async function syncToGitHub() {
+            if (!isConnected) {
+                showNotification('error', 'Debes configurar GitHub primero');
+                return;
+            }
+
+            isSyncing = true;
+            render();
+
+            try {
+                // Preparar contenido
+                const content = JSON.stringify(currentConfig, null, 2);
+                const base64Content = btoa(unescape(encodeURIComponent(content)));
+                
+                // Obtener SHA del archivo existente
+                const sha = await getFileSHA('repos.json');
+                
+                // Crear o actualizar archivo
+                const response = await fetch(
+                    `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/repos.json`,
+                    {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${githubConfig.token}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: `Update repos.json - ${new Date().toLocaleString('es-ES')}`,
+                            content: base64Content,
+                            branch: githubConfig.branch,
+                            ...(sha && { sha })
+                        })
+                    }
+                );
+
+                if (response.ok) {
+                    showNotification('success', '✅ Sincronizado con GitHub exitosamente!');
+                    // Guardar también en localStorage
+                    localStorage.setItem('gitProjectsHub', JSON.stringify(currentConfig.repositories));
+                    localStorage.setItem('gitProjectsProgress', JSON.stringify(currentConfig.progress));
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Error al sincronizar');
+                }
+            } catch (error) {
+                showNotification('error', '❌ Error: ' + error.message);
+            } finally {
+                isSyncing = false;
+                render();
+            }
+        }
+
+        // Descargar desde GitHub
+        async function downloadFromGitHub() {
+            if (!isConnected) {
+                showNotification('error', 'Debes configurar GitHub primero');
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/repos.json?ref=${githubConfig.branch}`,
+                    {
+                        headers: {
+                            'Authorization': `token ${githubConfig.token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const content = decodeURIComponent(escape(atob(data.content)));
+                    currentConfig = JSON.parse(content);
+                    
+                    // Guardar en localStorage
+                    localStorage.setItem('gitProjectsHub', JSON.stringify(currentConfig.repositories));
+                    localStorage.setItem('gitProjectsProgress', JSON.stringify(currentConfig.progress));
+                    
+                    showNotification('success', '✅ Configuración descargada desde GitHub');
+                    render();
+                } else {
+                    showNotification('warning', 'No se encontró repos.json en GitHub');
+                }
+            } catch (error) {
+                showNotification('error', '❌ Error al descargar: ' + error.message);
+            }
+        }
+
+        // Mostrar notificación
+        function showNotification(type, message) {
+            const banner = document.createElement('div');
+            banner.className = `sync-banner ${type}`;
+            banner.style.position = 'fixed';
+            banner.style.top = '1rem';
+            banner.style.right = '1rem';
+            banner.style.maxWidth = '400px';
+            banner.style.zIndex = '9999';
+            banner.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
+            
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+            
+            banner.innerHTML = `
+                <span class="sync-icon">${icons[type]}</span>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(banner);
+            setTimeout(() => banner.remove(), 5000);
+        }
+
+        // Configurar GitHub
+        function setupGitHub() {
+            document.getElementById('setupModal').classList.add('active');
+        }
+
+        function saveGitHubSetup(event) {
+            event.preventDefault();
+            
+            githubConfig.owner = document.getElementById('ghOwner').value.trim();
+            githubConfig.repo = document.getElementById('ghRepo').value.trim();
+            githubConfig.token = document.getElementById('ghToken').value.trim();
+            githubConfig.branch = document.getElementById('ghBranch').value.trim() || 'main';
+            
+            saveGitHubConfig();
+            document.getElementById('setupModal').classList.remove('active');
+            
+            // Verificar conexión
+            testGitHubConnection().then(connected => {
+                isConnected = connected;
+                if (connected) {
+                    showNotification('success', '✅ Conectado a GitHub exitosamente!');
+                } else {
+                    showNotification('error', '❌ No se pudo conectar. Verifica tus credenciales.');
+                }
+                render();
+            });
+        }
+
+        // CRUD de repositorios
+        function addRepo(owner, repo, description = '') {
+            currentConfig.repositories.push({ owner, repo, description });
+            render();
+        }
+
+        function removeRepo(owner, repo) {
+            currentConfig.repositories = currentConfig.repositories.filter(
+                r => !(r.owner === owner && r.repo === repo)
+            );
+            const key = `${owner}/${repo}`;
+            delete currentConfig.progress[key];
+            render();
+        }
+
+        function updateProgress(owner, repo, progress) {
+            const key = `${owner}/${repo}`;
+            currentConfig.progress[key] = progress;
+            render();
+        }
+
+        // Modales
+        function showAddRepoModal() {
+            document.getElementById('addRepoModal').classList.add('active');
+        }
+
+        function closeAddRepoModal() {
+            document.getElementById('addRepoModal').classList.remove('active');
+        }
+
+        function handleAddRepo(event) {
+            event.preventDefault();
+            const owner = document.getElementById('ownerInput').value.trim();
+            const repo = document.getElementById('repoInput').value.trim();
+            const description = document.getElementById('descInput').value.trim();
+            
+            if (owner && repo) {
+                addRepo(owner, repo, description);
+                closeAddRepoModal();
+                event.target.reset();
+            }
+        }
+
+        // Render
+        async function render() {
+            const source = await loadConfig();
+            const hasConfig = loadGitHubConfig();
+            
+            if (hasConfig && !isConnected) {
+                isConnected = await testGitHubConnection();
+            }
+
+            const app = document.getElementById('app');
+            
+            app.innerHTML = `
+                <header class="header">
+                    <div class="container">
+                        <div class="header-content">
+                            <div class="header-title">
+                                <span style="font-size: 3rem;">🚀</span>
+                                <div>
+                                    <h1>Git Projects Hub</h1>
+                                    <p class="subtitle">Auto-Sincronización con GitHub API</p>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                ${isConnected ? `
+                                    <span class="status-badge connected">
+                                        ✅ Conectado
+                                    </span>
+                                    <button class="btn btn-success" onclick="syncToGitHub()" ${isSyncing ? 'disabled' : ''}>
+                                        ${isSyncing ? '<span class="spinner"></span>' : '☁️'} 
+                                        ${isSyncing ? 'Sincronizando...' : 'Guardar en GitHub'}
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="downloadFromGitHub()">
+                                        ⬇️ Descargar
+                                    </button>
+                                ` : `
+                                    <span class="status-badge disconnected">
+                                        ❌ No Conectado
+                                    </span>
+                                `}
+                                <button class="btn btn-primary" onclick="setupGitHub()">
+                                    ⚙️ Configurar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="container">
+                    ${!isConnected ? `
+                        <div class="sync-banner warning">
+                            <span class="sync-icon">⚠️</span>
+                            <div class="sync-content">
+                                <div class="sync-title">GitHub no configurado</div>
+                                <div class="sync-desc">
+                                    Configura tu GitHub Token para habilitar la sincronización automática
+                                </div>
+                            </div>
+                            <div class="sync-actions">
+                                <button class="btn btn-warning" onclick="setupGitHub()">
+                                    🔧 Configurar Ahora
+                                </button>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="sync-banner success">
+                            <span class="sync-icon">✅</span>
+                            <div class="sync-content">
+                                <div class="sync-title">Auto-Sync Habilitado</div>
+                                <div class="sync-desc">
+                                    Repo: ${githubConfig.owner}/${githubConfig.repo} • 
+                                    Branch: ${githubConfig.branch} • 
+                                    Los cambios se guardan con un click
+                                </div>
+                            </div>
+                        </div>
+                    `}
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin: 2rem 0 1rem 0;">
+                        <h2>📦 Repositorios (${currentConfig.repositories.length})</h2>
+                        <button class="btn btn-secondary" onclick="showAddRepoModal()">
+                            ➕ Agregar Repositorio
+                        </button>
+                    </div>
+
+                    <div>
+                        ${currentConfig.repositories.length === 0 ? `
+                            <div style="text-align: center; padding: 4rem 2rem; background: white; border-radius: 0.75rem;">
+                                <div style="font-size: 4rem; margin-bottom: 1rem;">📂</div>
+                                <h3 style="font-size: 1.25rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem;">
+                                    No hay repositorios
+                                </h3>
+                                <p style="color: #9ca3af; margin-bottom: 1.5rem;">
+                                    Agrega tu primer repositorio y sincronízalo con GitHub
+                                </p>
+                                <button class="btn btn-secondary" onclick="showAddRepoModal()">
+                                    ➕ Agregar Repositorio
+                                </button>
+                            </div>
+                        ` : currentConfig.repositories.map(repo => {
+                            const progress = currentConfig.progress[`${repo.owner}/${repo.repo}`] || {};
+                            return `
+                                <div class="project-card">
+                                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                                        <div style="flex: 1;">
+                                            <span style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 600;">
+                                                👤 ${repo.owner}
+                                            </span>
+                                            <h3 style="font-size: 1.25rem; margin-top: 0.5rem;">
+                                                <a href="https://github.com/${repo.owner}/${repo.repo}" target="_blank" style="color: #1f2937; text-decoration: none;">
+                                                    🔗 ${repo.repo}
+                                                </a>
+                                            </h3>
+                                            <p style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">
+                                                ${repo.description || 'Sin descripción'}
+                                            </p>
+                                        </div>
+                                        <button class="btn btn-danger" onclick="if(confirm('¿Eliminar ${repo.repo}?')) removeRepo('${repo.owner}', '${repo.repo}')" 
+                                                style="padding: 0.5rem 1rem;">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                    
+                                    <div style="margin-top: 1rem; padding: 1rem; background: #f9fafb; border-radius: 0.5rem;">
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="font-size: 0.875rem; font-weight: 600;">
+                                                ${progress.status || 'planning'} - ${progress.percentage || 0}%
+                                            </span>
+                                        </div>
+                                        <div style="background: #e5e7eb; height: 0.5rem; border-radius: 9999px; overflow: hidden; margin-top: 0.5rem;">
+                                            <div style="background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); height: 100%; width: ${progress.percentage || 0}%;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    ${isConnected ? `
+                        <div style="margin-top: 2rem; padding: 1.5rem; background: #dbeafe; border: 2px solid #3b82f6; border-radius: 0.75rem;">
+                            <h3 style="color: #1e40af; margin-bottom: 0.5rem;">💡 Workflow de Sincronización</h3>
+                            <ol style="color: #1e3a8a; margin-left: 1.5rem; line-height: 1.8;">
+                                <li>Agregas o editas proyectos en el dashboard</li>
+                                <li>Click en "☁️ Guardar en GitHub"</li>
+                                <li>¡Listo! Se hace commit automático a tu repo</li>
+                                <li>Todos ven los cambios inmediatamente</li>
+                            </ol>
+                        </div>
+                    ` : ''}
+                </div>
+
+                ${renderSetupModal()}
+                ${renderAddRepoModal()}
+            `;
+        }
+
+        function renderSetupModal() {
+            return `
+                <div id="setupModal" class="modal">
+                    <div class="modal-content">
+                        <h2 class="modal-header">⚙️ Configurar GitHub Auto-Sync</h2>
+                        
+                        <form onsubmit="saveGitHubSetup(event)">
+                            <div class="form-group">
+                                <label class="form-label">👤 Tu Usuario de GitHub</label>
+                                <input type="text" id="ghOwner" class="form-input" 
+                                       placeholder="tu-usuario" value="${githubConfig.owner}" required>
+                                <div class="form-help">El usuario o organización dueña del repositorio</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">📦 Nombre del Repositorio</label>
+                                <input type="text" id="ghRepo" class="form-input" 
+                                       placeholder="mi-dashboard" value="${githubConfig.repo}" required>
+                                <div class="form-help">Donde está alojado tu dashboard</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">🔑 GitHub Personal Access Token</label>
+                                <input type="password" id="ghToken" class="form-input" 
+                                       placeholder="ghp_xxxxxxxxxxxx" value="${githubConfig.token}" required>
+                                <div class="form-help">
+                                    <a href="#" onclick="showTokenInstructions(); return false;" 
+                                       style="color: #3b82f6; text-decoration: underline;">
+                                        ¿Cómo generar un token?
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">🌿 Branch (opcional)</label>
+                                <input type="text" id="ghBranch" class="form-input" 
+                                       placeholder="main" value="${githubConfig.branch}">
+                                <div class="form-help">Por defecto: main</div>
+                            </div>
+
+                            <div id="tokenInstructions" style="display: none; background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                                <h4 style="font-weight: 600; margin-bottom: 0.5rem;">📚 Cómo crear un GitHub Token:</h4>
+                                <ol style="font-size: 0.875rem; margin-left: 1.25rem; line-height: 1.8;">
+                                    <li>Ve a GitHub.com → Settings (tu perfil)</li>
+                                    <li>Developer settings → Personal access tokens → Tokens (classic)</li>
+                                    <li>Generate new token (classic)</li>
+                                    <li>Nombre: "Dashboard Auto-Sync"</li>
+                                    <li>Permisos: ✅ <strong>repo</strong> (todos los sub-permisos)</li>
+                                    <li>Generate token</li>
+                                    <li>Copia el token (empieza con ghp_)</li>
+                                </ol>
+                                <div class="code-block">
+                                    https://github.com/settings/tokens
+                                </div>
+                            </div>
+
+                            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                                <button type="button" class="btn" onclick="document.getElementById('setupModal').classList.remove('active')">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    💾 Guardar Configuración
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAddRepoModal() {
+            return `
+                <div id="addRepoModal" class="modal">
+                    <div class="modal-content">
+                        <h2 class="modal-header">Agregar Repositorio</h2>
+                        <form onsubmit="handleAddRepo(event)">
+                            <div class="form-group">
+                                <label class="form-label">Usuario/Organización</label>
+                                <input type="text" id="ownerInput" class="form-input" placeholder="facebook" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Repositorio</label>
+                                <input type="text" id="repoInput" class="form-input" placeholder="react" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Descripción (opcional)</label>
+                                <input type="text" id="descInput" class="form-input" placeholder="Mi proyecto...">
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                                <button type="button" class="btn" onclick="closeAddRepoModal()">Cancelar</button>
+                                <button type="submit" class="btn btn-secondary">Agregar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showTokenInstructions() {
+            const elem = document.getElementById('tokenInstructions');
+            elem.style.display = elem.style.display === 'none' ? 'block' : 'none';
+        }
+
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'setupModal' || e.target.id === 'addRepoModal') {
+                e.target.classList.remove('active');
+            }
+        });
+
+        // Inicializar
+        render();
+    </script>
+</body>
+</html>
